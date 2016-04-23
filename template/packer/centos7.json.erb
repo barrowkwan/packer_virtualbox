@@ -1,0 +1,57 @@
+{
+	"variables": {
+		"created_at": "{{isotime \"2006-01-02_03_04_05\"}}",
+		"compression_level": "<%= (!vm_config['vm_image_builder']['packer'].nil? && !vm_config['vm_image_builder']['packer']['compression_level'].nil? )?  vm_config['vm_image_builder']['packer']['compression_level'] : '6' %>",
+		"cpus": "<%= (!vm_config['vm_image_builder']['packer'].nil? && !vm_config['vm_image_builder']['packer']['cpus'].nil? )?  vm_config['vm_image_builder']['packer']['cpus'] : '1' %>",
+		"disk_size": "<%= (!vm_config['vm_image_builder']['packer'].nil? && !vm_config['vm_image_builder']['packer']['disk_size'].nil? )?  vm_config['vm_image_builder']['packer']['disk_size'] : '40000' %>",
+		"headless": "<%= (!vm_config['vm_image_builder']['packer'].nil? && !vm_config['vm_image_builder']['packer']['headless'].nil? )?  vm_config['vm_image_builder']['packer']['headless'] : 'false' %>",
+		"memory": "<%= (!vm_config['vm_image_builder']['packer'].nil? && !vm_config['vm_image_builder']['packer']['memory'].nil? )?  vm_config['vm_image_builder']['packer']['memory'] : '1024' %>"		
+	},
+	"builders": [{
+		"type": "<%= vm_type %>",
+		"guest_os_type": "<%= guest_os_type %>",
+		"iso_url": "<%= iso_url %>",
+		"iso_checksum": "<%= iso_checksum %>",
+		"iso_checksum_type": "<%= iso_checksum_type %>",
+		"vm_name": "packer-centos-7.2-x86_64",
+		"output_directory": "box/packer-centos-7.2-x86_64",
+		"disk_size": "{{user `disk_size`}}",
+		"headless": "{{user `headless`}}",
+		"http_directory": "tmp/http",
+		"boot_command": [
+			"<wait><esc><esc>",
+			"linux ks=http://{{.HTTPIP}}:{{.HTTPPort}}/ks.cfg biosdevname=0 net.ifnames=0",
+			"<enter>"
+		],
+    <% if vm_type.eql? 'virtualbox-iso'%>
+		"guest_additions_path": "VBoxGuestAdditions_{{.Version}}.iso",
+		"virtualbox_version_file": ".vbox_version",
+		"vboxmanage": [
+			[ "modifyvm", "{{.Name}}", "--memory", "{{user `memory`}}" ],
+			[ "modifyvm", "{{.Name}}", "--cpus", "{{user `cpus`}}"]
+		],
+    <% end %>
+		"ssh_username": "<%= !vm_config['vm_image_builder']['ssh_username'].nil? ?  vm_config['vm_image_builder']['ssh_username'] : 'vagrant' %>",
+		"ssh_password": "<%= !vm_config['vm_image_builder']['ssh_password'].nil? ?  vm_config['vm_image_builder']['ssh_password'] : 'vagrant' %>",
+		"ssh_timeout": "30m",
+		"shutdown_command": "sudo -S shutdown -P now"
+	}],
+	"post-processors": [{
+		"type": "vagrant",
+		"output": "box/{{.Provider}}-<%= output_image_name %>",
+		"compression_level": "{{user `compression_level`}}",
+		"vagrantfile_template": "./Vagrantfile"
+	}],
+	"provisioners": [{
+		"type": "shell",
+		"override": {
+			"<%= vm_type %>": {
+				"execute_command": "echo 'vagrant'|sudo -S sh '{{.Path}}'",
+				"scripts": [
+<%= provisioner_scripts.map!{|p_script| "\t\t\t\t\t\"scripts/#{p_script}\""}.join(",\n") %>
+
+				]
+			}
+		}
+	}]
+}

@@ -1,0 +1,75 @@
+install
+text
+lang en_US.UTF-8
+keyboard us
+url --mirrorlist=http://mirrorlist.centos.org/?release=$releasever&arch=$basearch&repo=os
+timezone America/Los_Angele --utc --ntpservers 0.centos.pool.ntp.org,1.centos.pool.ntp.org,2.centos.pool.ntp.org,3.centos.pool.ntp.org
+network --onboot=yes --bootproto=dhcp --noipv6 --onboot=on --device=eth0
+reboot
+rootpw vagrant
+firewall --disabled
+selinux --disabled
+authconfig --enableshadow --passalgo=sha512
+zerombr
+skipx
+bootloader --location=mbr --append="crashkernel=auto rhgb quiet net.ifnames=0" --timeout=1
+clearpart --all --initlabel
+part /boot --fstype=xfs --size=512
+part pv.01 --size=1024 --grow
+volgroup vg_root pv.01
+logvol swap --fstype swap --name=lv_swap --vgname=vg_root --size=1024
+logvol / --fstype=xfs --name=lv_root --vgname=vg_root --size=1024 --grow
+user --name=vagrant --groups=wheel --password=vagrant
+unsupported_hardware
+
+services --disabled="avahi-daemon,iscsi,iscsid,firstboot,kdump" --enabled="network,sshd,rsyslog,tuned,sssd"
+
+%packages --nobase --excludedocs --instLangs=en_US.utf8
+openssh-server
+openssh-clients
+sudo
+kernel-headers
+kernel-devel
+gcc
+make
+perl
+curl
+wget
+bzip2
+patch
+nfs-utils
+net-tools
+vim-minimal
+git
+binutils
+-fprintd-pam
+-intltool
+-mariadb-libs
+-postfix
+which
+-*-firmware
+-b43-openfwwf
+-dracut-config-rescue
+-kernel-tools
+-libsysfs
+-microcode_ctl
+-NetworkManager*
+-postfix
+-rdma
+%end
+
+%post --log=/root/ks.log
+
+/bin/cat << EOF > /etc/sudoers.d/wheel
+Defaults:%wheel env_keep += "SSH_AUTH_SOCK"
+Defaults:%wheel !requiretty
+%wheel ALL=(ALL) NOPASSWD: ALL
+EOF
+/bin/chmod 0440 /etc/sudoers.d/wheel
+
+/usr/bin/yum clean all
+/usr/bin/yum makecache
+/usr/bin/yum -y update
+/usr/bin/yum -y remove linux-firmware
+
+%end

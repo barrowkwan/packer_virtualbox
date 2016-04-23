@@ -1,0 +1,2 @@
+include = "{$include,.tm_properties,.kitchen.yml,.gitignore}"
+
