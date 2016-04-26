@@ -21,3 +21,6 @@ bin/*
 box/
 packer_cache/
 tmp/
+
+**/.DS_Store
+output-virtualbox-iso/

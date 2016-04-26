@@ -1,0 +1,58 @@
+{
+	"variables": {
+		"created_at": "{{isotime \"2006-01-02_03_04_05\"}}",
+		"compression_level": "<%= ENV['VM_COMPRESSION_LEVEL'].nil? ? ((!vm_config['vm_image_builder']['packer'].nil? && !vm_config['vm_image_builder']['packer']['compression_level'].nil? )?  vm_config['vm_image_builder']['packer']['compression_level'] : '6') : ENV['VM_COMPRESSION_LEVEL']%>",
+		"cpus": "<%= ENV['VM_CPUS'].nil? ? ((!vm_config['vm_image_builder']['packer'].nil? && !vm_config['vm_image_builder']['packer']['cpus'].nil? )?  vm_config['vm_image_builder']['packer']['cpus'] : '1') : ENV['VM_CPUS]'] %>",
+		"disk_size": "<%= ENV['VM_DISK_SIZE'].nil? ? ((!vm_config['vm_image_builder']['packer'].nil? && !vm_config['vm_image_builder']['packer']['disk_size'].nil? )?  vm_config['vm_image_builder']['packer']['disk_size'] : '40000') : ENV['VM_DISK_SIZE']%>",
+		"headless": "<%= ENV['VM_HEADLESS'].nil? ? ((!vm_config['vm_image_builder']['packer'].nil? && !vm_config['vm_image_builder']['packer']['headless'].nil? )?  vm_config['vm_image_builder']['packer']['headless'] : 'false') : ENV['VM_HEADLESS'] %>",
+		"memory": "<%= ENV['VM_MEMORY'].nil? ? ((!vm_config['vm_image_builder']['packer'].nil? && !vm_config['vm_image_builder']['packer']['memory'].nil? )?  vm_config['vm_image_builder']['packer']['memory'] : '1024') : ENV['VM_MEMORY'] %>"		
+	},
+	"builders": [{
+		"type": "<%= vm_type %>",
+		"guest_os_type": "<%= ENV['GUEST_OS_TYPE'].nil? ? guest_os_type : ENV['GUEST_OS_TYPE'] %>",
+		"iso_url": "<%= ENV['ISO_URL'].nil? ? iso_url : ENV['ISO_URL'] %>",
+		"iso_checksum": "<%= ENV['ISO_CHECKSUM'].nil? ? iso_checksum : ENV['ISO_CHECKSUM'] %>",
+		"iso_checksum_type": "<%= ENV['ISO_CHECKSUM_TYPE'].nil? ? iso_checksum_type : ENV['ISO_CHECKSUM_TYPE'] %>",
+		"vm_name": "<%= vm_name %>",
+		"output_directory": "box/<%= vm_name %>",
+		"disk_size": "{{user `disk_size`}}",
+		"headless": "{{user `headless`}}",
+		"http_directory": "tmp/http",
+		"boot_command": [
+<%= boot_command.map!{|b_command| "\t\t\t\t\t\"#{b_command}\""}.join(",\n") %>
+		],
+    <% if vm_type.eql? 'virtualbox-iso'%>
+		"guest_additions_path": "VBoxGuestAdditions_{{.Version}}.iso",
+		"virtualbox_version_file": ".vbox_version",
+		"vboxmanage": [
+			[ "modifyvm", "{{.Name}}", "--memory", "{{user `memory`}}" ],
+			[ "modifyvm", "{{.Name}}", "--cpus", "{{user `cpus`}}"]
+		],
+    <% end %>
+		"ssh_username": "<%= ENV['SSH_USERNAME'].nil? ? (!vm_config['vm_image_builder']['ssh_username'].nil? ?  vm_config['vm_image_builder']['ssh_username'] : 'vagrant') : ENV['SSH_USERNAME'] %>",
+		"ssh_password": "<%= ENV['SSH_PASSWORD'].nil? ? (!vm_config['vm_image_builder']['ssh_password'].nil? ?  vm_config['vm_image_builder']['ssh_password'] : 'vagrant') : ENV['SSH_PASSWORD'] %>",
+		"ssh_timeout": "30m",
+		"shutdown_command": "<%= shutdown_command %>"
+	}],
+	"post-processors": [{
+		"type": "vagrant",
+		"output": "box/{{.Provider}}-<%= output_image_name %>",
+		"compression_level": "{{user `compression_level`}}",
+		"vagrantfile_template": "./Vagrantfile"
+	}]
+<% if !provisioner_scripts.empty? %>
+  ,
+	"provisioners": [{
+		"type": "shell",
+		"override": {
+			"<%= vm_type %>": {
+				"execute_command": "echo 'vagrant'|sudo -S sh '{{.Path}}'",
+				"scripts": [
+<%= provisioner_scripts.map!{|p_script| "\t\t\t\t\t\"scripts/#{p_script}\""}.join(",\n") %>
+
+				]
+			}
+		}
+	}]
+<% end %>
+}

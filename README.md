@@ -11,6 +11,6 @@
 # Usage
  
 ```
-$ rake "vm_image_builder:default[centos,7.2,virtualbox-iso]"
+$ rake vm_image_builder:default TARGET='centos' VERSION='7.2' VM_TYPE='virtualbox-iso'
 
 ```

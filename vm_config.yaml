@@ -8,8 +8,17 @@
     'headless' : 'false'
     'memory' : '2048'
     'compression_level' : '6'
+    
 'virtualbox-iso':
-  'provisioner_scripts' : ["base","networks","vagrant","virtualbox","cleanup"]
+  'provisioner_scripts' : 
+    'centos' : ["base","networks","vagrant","virtualbox","cleanup"]
+    'ubuntu' : ["vagrant","virtualbox"]
+
+'qemu':
+  'provisioner_scripts' : 
+    'centos' : ["base","networks","cleanup"]
+    'ubuntu' : []
+
 'centos':
   '7.2':
     'url': "http://mirrors.kernel.org/centos/7.2.1511/os/x86_64"
@@ -21,6 +30,24 @@
     'iso_url': "http://mirrors.kernel.org/centos/6.7/isos/x86_64/CentOS-6.7-x86_64-netinstall.iso"
     'iso_checksum_type': "sha256"
     'iso_checksum': "411da8c3f66839eef9ae47bf4515cc0b82f2a1dfc7b2d5bde2d203ca7e3220f3"
+
+'ubuntu':
+  '16.04':
+    'url' : "http://mirrors.kernel.org/ubuntu-releases/16.04/"
+    'iso_url' : "http://mirrors.kernel.org/ubuntu-releases/16.04/ubuntu-16.04-server-amd64.iso"
+    'iso_checksum_type' : "sha256"
+    'iso_checksum' : "b8b172cbdf04f5ff8adc8c2c1b4007ccf66f00fc6a324a6da6eba67de71746f6"
+  '14.04':
+    'url' : "http:/mirrors.kernel.org/ubuntu-releases/14.04.4/"
+    'iso_url' : "http://mirrors.kernel.org/ubuntu-releases/14.04.4/ubuntu-14.04.4-server-amd64.iso"
+    'iso_checksum_type' : "sha256"
+    'iso_checksum' : "07e4bb5569814eab41fafac882ba127893e3ff0bdb7ec931c9b2d040e3e94e7a"
+  '12.04':
+    'url' : "http:/mirrors.kernel.org/ubuntu-releases/12.04.5/"
+    'iso_url' : "http://mirrors.kernel.org/ubuntu-releases/12.04.5/ubuntu-12.04.5-server-amd64.iso"
+    'iso_checksum_type' : "sha256"
+    'iso_checksum' : "af224223de99e2a730b67d7785b657f549be0d63221188e105445f75fb8305c9"
+    
 'epel':
   '6':
     'url': "http://mirrors.kernel.org/fedora-epel/6/x86_64"

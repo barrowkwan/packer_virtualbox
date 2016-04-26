@@ -47,53 +47,88 @@ namespace :vm_image_builder do
     FileUtils.rm_rf Dir.glob("#{File.dirname(__FILE__)}/tmp/*")
 	end
   
-	task :default, [:arg1, :arg2, :arg3] do |t, args|
+	task :default do
+
     Rake::Task["vm_image_builder:cleanup"].invoke
     Rake::Task["vm_image_builder:init"].invoke
-    case args[:arg1]
-    when 'centos'
-      puts "Building CentOS VM"
-      Rake::Task["vm_image_builder:centos_vm"].invoke(args[:arg2],args[:arg3])
-    else
-      puts "Nothing to build"
-    end
-  end
-  
-
-	task :centos_vm, [:arg1, :arg2] do |t, args|
-
+    
     vm_config = load_vm_config
-    vm_type = args[:arg2]
-    vm_distro_version = args[:arg1]
-    guest_os_type = 'RedHat_64'
-    iso_url = vm_config['centos'][vm_distro_version]['iso_url']
-    iso_checksum = vm_config['centos'][vm_distro_version]['iso_checksum']
-    iso_checksum_type = vm_config['centos'][vm_distro_version]['iso_checksum_type']
-    output_image_name = "centos-#{vm_distro_version}.box"
 
+    vm_type = ENV['VM_TYPE'].nil? ? "" : ENV['VM_TYPE']    
+    vm_distro_version = ENV['VERSION'].nil? ? "" : ENV['VERSION']
+    vm_target = ENV['TARGET'].nil? ? "" : ENV['TARGET']
+    
+    if ( vm_type.empty? || vm_distro_version.empty? || vm_target.empty? )
+      raise "TARGET / VM_TYPE / VERSION are required"
+    end
+
+    iso_url = (!vm_config[vm_target].nil? && !vm_config[vm_target][vm_distro_version].nil? && !vm_config[vm_target][vm_distro_version]['iso_url'].nil?) ?
+      vm_config[vm_target][vm_distro_version]['iso_url'] : ""
+    distro_url = (!vm_config[vm_target].nil? && !vm_config[vm_target][vm_distro_version].nil? && !vm_config[vm_target][vm_distro_version]['url'].nil?) ?
+        vm_config[vm_target][vm_distro_version]['url'] : ""
+    iso_checksum = (!vm_config[vm_target].nil? && !vm_config[vm_target][vm_distro_version].nil? && !vm_config[vm_target][vm_distro_version]['iso_checksum'].nil?) ?
+      vm_config[vm_target][vm_distro_version]['iso_checksum'] : ""
+    iso_checksum_type = (!vm_config[vm_target].nil? && !vm_config[vm_target][vm_distro_version].nil? && !vm_config[vm_target][vm_distro_version]['iso_checksum_type'].nil?) ?
+      vm_config[vm_target][vm_distro_version]['iso_checksum_type'] : ""
+    output_image_name = "#{vm_target}-#{vm_distro_version}.box"
+    vm_name = "packer-#{vm_target}-#{vm_distro_version}"
     provisioner_scripts = case vm_type
     when 'virtualbox-iso'
-      (!vm_config['virtualbox-iso'].nil? && !vm_config['virtualbox-iso']['provisioner_scripts'].nil?) ?
-         vm_config['virtualbox-iso']['provisioner_scripts'].map!{|p_script| "rhel#{vm_distro_version.split(".")[0]}-#{p_script}.sh"} :
+      (!vm_config['virtualbox-iso'].nil? && !vm_config['virtualbox-iso']['provisioner_scripts'].nil? && !vm_config['virtualbox-iso']['provisioner_scripts'][vm_target].nil?) ?
+         vm_config['virtualbox-iso']['provisioner_scripts'][vm_target].map!{|p_script| "#{vm_target}#{vm_distro_version.split(".")[0]}-#{p_script}.sh"} :
          []
     else
       []    
     end
     
-    puts "Generate Kickstart Script"
-		render_template("#{File.dirname(__FILE__)}/template/kickstart/centos#{vm_distro_version.split('.')[0]}.cfg.erb",
-      "#{File.dirname(__FILE__)}/tmp/http/ks.cfg",
+    case vm_target
+    when 'centos'
+      puts "Building CentOS VM"
+      guest_os_type = 'RedHat_64'
+      boot_command = [
+  			"<wait><esc><esc>",
+  			"linux ks=http://{{.HTTPIP}}:{{.HTTPPort}}/packer.cfg biosdevname=0 net.ifnames=0",
+  			"<enter>"
+      ]
+      shutdown_command = "sudo -S shutdown -P now"
+      
+    when 'ubuntu'
+      puts "Building Ubuntu VM"
+      guest_os_type = 'Ubuntu_64'
+      boot_command = [
+        "<esc><esc><enter><wait>",
+        "/install/vmlinuz noapic ",
+        "preseed/url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/packer.cfg ",
+        "debian-installer=en_US auto locale=en_US kbd-chooser/method=us ",
+        "hostname=ubuntu-#{vm_distro_version} ",
+        "fb=false debconf/frontend=noninteractive ",
+        "keyboard-configuration/modelcode=SKIP keyboard-configuration/layout=USA ",
+        "keyboard-configuration/variant=USA console-setup/ask_detect=false ",
+        "initrd=/install/initrd.gz -- <enter>"
+      ]
+      shutdown_command = "echo #{(!vm_config['vm_image_builder'].nil? && !vm_config['vm_image_builder']['ssh_password'].nil?) ? vm_config['vm_image_builder']['ssh_password'] : 'vagrant'}| sudo -S shutdown -P now"
+
+ 
+    else
+      raise "Nothing to build"
+    end
+
+    puts "Generate Kickstart/Preseed Script"
+		render_template("#{File.dirname(__FILE__)}/template/kickstart/#{vm_target}.cfg.erb",
+      "#{File.dirname(__FILE__)}/tmp/http/packer.cfg",
       binding)
     
     puts "Generate Packer Configuration"
-		render_template("#{File.dirname(__FILE__)}/template/packer/centos#{vm_distro_version.split('.')[0]}.json.erb",
-      "#{File.dirname(__FILE__)}/tmp/packer/centos#{vm_distro_version.split('.')[0]}.json",
+		render_template("#{File.dirname(__FILE__)}/template/packer/packer.json.erb",
+      "#{File.dirname(__FILE__)}/tmp/packer/packer.json",
       binding)
 
     puts "Packer start building VM"
-    puts %x{packer build "#{File.dirname(__FILE__)}"/tmp/packer/centos"#{vm_distro_version.split('.')[0]}".json}
-
-
-	end
+    puts %x{packer build "#{File.dirname(__FILE__)}"/tmp/packer/packer.json}
+    # Open3.popen3("packer build #{File.dirname(__FILE__)}/tmp/packer/packer.json") do |stdout, stderr, status, thread|
+#       puts stdout.read
+#     end
+  end
+  
 
 end
